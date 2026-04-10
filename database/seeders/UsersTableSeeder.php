@@ -1,0 +1,56 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Profile;
+use App\Models\Role;
+use App\Models\User;
+use Faker\Factory;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+
+class UsersTableSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        $faker = Factory::create('en_TZ');
+        $roles = Role::all();
+        foreach ($roles as $role) {
+            $email = $role->slug.'@user.com';
+            $this->createUser($faker, $email, $role);
+        }
+    }
+
+    private function createUser($faker, $email, $role)
+    {
+        $user = User::where('email', '=', $email)->first();
+        if (null === $user) {
+            if ($email === 'admin@user.com'){
+                $phone = '255785008133';
+            }else{
+                $phone = $faker->phoneNumber;
+            }
+            $user = User::create([
+                'name'                           => $faker->userName,
+                'first_name'                     => $faker->firstName,
+                'last_name'                      => $faker->lastName,
+                'email'                          => $email,
+                'phone'                          => $phone,
+                'password'                       => Hash::make('password'),
+                'token'                          => str_random(64),
+                'activated'                      => true,
+                'signup_ip_address'              => $faker->ipv4,
+                'signup_confirmation_ip_address' => $faker->ipv4,
+            ]);
+
+            $user->profile()->save(new Profile());
+            $user->attachRole($role);
+            $user->save();
+        }
+    }
+}
