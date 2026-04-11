@@ -20,9 +20,8 @@ class SMSTrait
 
     /**
      * Send SMS via Mobishastra API (single number)
-     * Replaces: sendBEEMSMS, sendBEEMSMS1, sendBEEMSMSNew, sendSmsNext
      */
-    public function sendMobishastraSMS($phone, $sms, $id = 12, $sender_name = 'SHEREHE')
+    public function sendMobishastraSMS($phone, $sms, $sender_name = 'SHEREHE')
     {
         $phone_no = $this->formatPhone($phone);
         // Remove the + prefix — Mobishastra accepts numbers with country code without +
@@ -194,28 +193,29 @@ class SMSTrait
         return $result['success'] ?? false;
     }
 
-    public function sendBEEMSMS($phone, $sms, $id = 12, $sender_name = 'SHEREHE')
+    public function sendBEEMSMS($phone, $sms, $id = null, $sender_name = 'SHEREHE')
     {
-        return $this->sendMobishastraSMS($phone, $sms, $id, $sender_name);
+        return $this->sendMobishastraSMS($phone, $sms, $sender_name);
     }
 
-    public function sendBEEMSMS1($phone, $sms, $id = 12, $sender_name = 'SHEREHE')
+    public function sendBEEMSMS1($phone, $sms, $id = null, $sender_name = 'SHEREHE')
     {
-        return $this->sendMobishastraSMS($phone, $sms, $id, $sender_name);
+        return $this->sendMobishastraSMS($phone, $sms, $sender_name);
     }
 
-    public function sendBEEMSMSNew($phone, $sms, $id = 12, $sender_name = 'S.DIGITAL')
+    public function sendBEEMSMSNew($phone, $sms, $id = null, $sender_name = 'S.DIGITAL')
     {
-        return $this->sendMobishastraSMS($phone, $sms, $id, $sender_name);
+        return $this->sendMobishastraSMS($phone, $sms, $sender_name);
     }
 
     /**
      * Legacy sendSMS method used by RegisterAppUserController
      * Signature: sendSMS($id, $phone, $message)
+     * Note: $id is a user ID from old code, not used by Mobishastra
      */
     public function sendSMS($id, $phone, $sms, $sender_name = 'SHEREHE')
     {
-        return $this->sendMobishastraSMS($phone, $sms, $id, $sender_name);
+        return $this->sendMobishastraSMS($phone, $sms, $sender_name);
     }
 
     /**

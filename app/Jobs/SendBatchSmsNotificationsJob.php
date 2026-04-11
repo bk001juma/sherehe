@@ -47,7 +47,6 @@ class SendBatchSmsNotificationsJob implements ShouldQueue
                         $result = $smsSender->sendMobishastraSMS(
                             $notification->phone,
                             $notification->sms,
-                            $notification->id,
                             $this->sender_name
                         );
 

@@ -310,10 +310,10 @@ class SendInvitationCardNameJob implements ShouldQueue
     }
 
 
-    private function sendBEEMSMS2($phone, $sms, $id = 12, $sender_name = 'SHEREHE')
+    private function sendBEEMSMS2($phone, $sms, $id = null, $sender_name = 'SHEREHE')
     {
         $smsSender = new SMSTrait();
-        return $smsSender->sendMobishastraSMS($phone, $sms, $id, $sender_name);
+        return $smsSender->sendMobishastraSMS($phone, $sms, $sender_name);
     }
 
     public function shortenUrl($url)

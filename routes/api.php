@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\EventController;
+use App\Http\Controllers\API\FeedbackController;
 use App\Http\Controllers\Auth\App\AuthController;
 use App\Http\Controllers\Auth\App\RegisterAppUserController;
 use App\Http\Controllers\CallbackController;
@@ -41,6 +42,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/verifyDoublePledge', [EventController::class, 'verifyDoublePledge']);
     Route::post('/verify_code', [EventController::class, 'verifyCode']);
     Route::post('/verify_code_by_normal', [EventController::class, 'verifyCodeByNormalUser']);
+
+    // Feedback
+    Route::post('/feedback', [FeedbackController::class, 'store']);
+    Route::get('/my-feedbacks', [FeedbackController::class, 'myFeedbacks']);
 });
 
 Route::get('shorten-url', [EventController::class, 'shortenUrl']);
