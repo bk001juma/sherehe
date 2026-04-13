@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\API\EventController;
 use App\Http\Controllers\API\FeedbackController;
+use App\Http\Controllers\API\ChatbotController;
 use App\Http\Controllers\Auth\App\AuthController;
 use App\Http\Controllers\Auth\App\RegisterAppUserController;
 use App\Http\Controllers\CallbackController;
@@ -46,6 +47,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Feedback
     Route::post('/feedback', [FeedbackController::class, 'store']);
     Route::get('/my-feedbacks', [FeedbackController::class, 'myFeedbacks']);
+
+    // Rule-based chatbot
+    Route::get('/chatbot/bootstrap', [ChatbotController::class, 'bootstrap']);
+    Route::post('/chatbot/message', [ChatbotController::class, 'message']);
 });
 
 Route::get('shorten-url', [EventController::class, 'shortenUrl']);
