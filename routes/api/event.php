@@ -31,6 +31,12 @@ Route::prefix('event')->middleware(['auth:sanctum', 'level:1'])->group(function 
     Route::get('/card/sendInvitationCardByName/{pledgeId}', [FromWebRouteEventController::class, 'sendInvitationCardByCardName']);
     Route::get('/card/sendInvitationCardByLink/{pledgeId}', [FromWebRouteEventController::class, 'sendInvitationCardByCardLink']);
 
+    // Bulk send invitation cards/tickets to all pledgers
+    Route::get('/card/sendInvitationCard/{eventId}/all', [FromWebRouteEventController::class, 'sendInvitationCardToAll']);
+    Route::get('/card/sendInvitationCard/{eventId}/all/name', [FromWebRouteEventController::class, 'sendInvitationCardToAllName']);
+    Route::get('/card/sendInvitationCard/{eventId}/all/link', [FromWebRouteEventController::class, 'sendInvitationCardToAllLink']);
+    Route::get('/ticket/sendInvitation/{eventId}/all/paid/tickets', [FromWebRouteEventController::class, 'sendInvitationButtonToAllPaidTicket']);
+
     //Get to day event
     Route::get('/today', [EventController::class, 'todayGetEvent']);
 
