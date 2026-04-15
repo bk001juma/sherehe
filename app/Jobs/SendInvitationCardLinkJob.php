@@ -206,14 +206,43 @@ class SendInvitationCardLinkJob implements ShouldQueue
 
                 $html = View::make('sherehe.dash.event.cards.card_with_link', $data)->render();
 
-                $imageBinary = Browsershot::html($html)
+                // Create temp directory in storage if it doesn't exist
+                $tempDir = storage_path('app/browsershot_temp');
+                if (!is_dir($tempDir)) {
+                    mkdir($tempDir, 0755, true);
+                }
+                
+                // Create a directory for Chrome user data
+                $chromeUserDataDir = storage_path('app/chrome_user_data');
+                if (!is_dir($chromeUserDataDir)) {
+                    mkdir($chromeUserDataDir, 0755, true);
+                }
+
+                // Find the correct Chromium path
+                $chromePath = $this->findChromePath();
+                
+                $browsershot = Browsershot::html($html)
+                    ->setCustomTempPath($tempDir)
+                    ->addChromiumArguments([
+                        'user-data-dir' => $chromeUserDataDir,
+                        'no-sandbox' => true,
+                        'disable-setuid-sandbox' => true,
+                        'disable-dev-shm-usage' => true,
+                        'disable-gpu' => true,
+                    ])
                     ->windowSize($width, $height)
                     ->showBackground()
                     ->noSandbox()
                     ->deviceScaleFactor(1)
                     ->fullPage()
-                    ->margins(0, 0, 0, 0)
-                    ->screenshot();
+                    ->margins(0, 0, 0, 0);
+                
+                // Only set Chrome path if we found one
+                if ($chromePath) {
+                    $browsershot->setChromePath($chromePath);
+                }
+                
+                $imageBinary = $browsershot->screenshot();
 
                 $base64Image = base64_encode($imageBinary);
 
@@ -272,6 +301,29 @@ class SendInvitationCardLinkJob implements ShouldQueue
         }
 
         return $new_no;
+    }
+    
+    /**
+     * Find the correct Chrome/Chromium executable path
+     */
+    private function findChromePath(): ?string
+    {
+        $possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/snap/bin/chromium',
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+        
+        // Return null to let Browsershot try to auto-detect
+        return null;
     }
 
     protected function sendWhatsAppMessage($formattedPhoneNumber, $imageBinary, $base64Image, $event, $attendee, $qrOTCode, $venueLocation, $dressCode, $rsvpNumbers, $cardType)

@@ -22,6 +22,29 @@ use Spatie\Browsershot\Browsershot;
 
 class EventController extends Controller
 {
+    /**
+     * Find the correct Chrome/Chromium executable path
+     */
+    private function findChromePath(): ?string
+    {
+        $possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/snap/bin/chromium',
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+        
+        // Return null to let Browsershot try to auto-detect
+        return null;
+    }
+
     // public function MyEvents()
     // {
     //     $user = Auth::user();
@@ -712,12 +735,41 @@ class EventController extends Controller
             // Render the HTML to an image in memory (as binary)
             list($width, $height) = getimagesize(public_path($pdfPath));
 
-            $imageBinary = Browsershot::html($html)
+            // Create temp directory in storage if it doesn't exist
+            $tempDir = storage_path('app/browsershot_temp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            // Create a directory for Chrome user data
+            $chromeUserDataDir = storage_path('app/chrome_user_data');
+            if (!is_dir($chromeUserDataDir)) {
+                mkdir($chromeUserDataDir, 0755, true);
+            }
+
+            // Find the correct Chromium path
+            $chromePath = $this->findChromePath();
+            
+            $browsershot = Browsershot::html($html)
+                ->setCustomTempPath($tempDir)
+                ->addChromiumArguments([
+                    'user-data-dir' => $chromeUserDataDir,
+                    'no-sandbox' => true,
+                    'disable-setuid-sandbox' => true,
+                    'disable-dev-shm-usage' => true,
+                    'disable-gpu' => true,
+                ])
                 ->windowSize($width, $height) // Set the image dimensions
                 ->noSandbox()
                 ->deviceScaleFactor(1)
-                ->waitUntilNetworkIdle()
-                ->screenshot(); // Generate the image as a binary string
+                ->waitUntilNetworkIdle();
+            
+            // Only set Chrome path if we found one
+            if ($chromePath) {
+                $browsershot->setChromePath($chromePath);
+            }
+            
+            $imageBinary = $browsershot->screenshot(); // Generate the image as a binary string
 
             // Convert the image binary to base64
             $base64Image = base64_encode($imageBinary);

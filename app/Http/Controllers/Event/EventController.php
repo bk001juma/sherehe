@@ -50,6 +50,67 @@ use Intervention\Image\Facades\Image;
 class EventController extends Controller
 {
     /**
+     * Get configured Browsershot instance with custom temp directory.
+     * This fixes PrivateTmp issues with Apache/systemd.
+     */
+    private function getBrowsershot(string $html): Browsershot
+    {
+        $tempDir = storage_path('app/browsershot_temp');
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        
+        // Create a directory for Chrome user data
+        $chromeUserDataDir = storage_path('app/chrome_user_data');
+        if (!is_dir($chromeUserDataDir)) {
+            mkdir($chromeUserDataDir, 0755, true);
+        }
+        
+        // Try to find the correct Chromium/Chrome path
+        $chromePath = $this->findChromePath();
+        
+        $browsershot = Browsershot::html($html)
+            ->setCustomTempPath($tempDir)
+            ->addChromiumArguments([
+                'user-data-dir' => $chromeUserDataDir,
+                'no-sandbox' => true,
+                'disable-setuid-sandbox' => true,
+                'disable-dev-shm-usage' => true,
+                'disable-gpu' => true,
+            ]);
+        
+        // Only set Chrome path if we found one, otherwise let Browsershot auto-detect
+        if ($chromePath) {
+            $browsershot->setChromePath($chromePath);
+        }
+        
+        return $browsershot;
+    }
+    
+    /**
+     * Find the correct Chrome/Chromium executable path
+     */
+    private function findChromePath(): ?string
+    {
+        $possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/snap/bin/chromium',
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+        
+        // Return null to let Browsershot try to auto-detect
+        return null;
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()
@@ -453,7 +514,7 @@ class EventController extends Controller
             $html = View::make('sherehe.dash.event.cards.card_with_name', $data)->render();
 
             Log::info('Generating screenshot using Browsershot');
-            $imageBinary = Browsershot::html($html)
+            $imageBinary = $this->getBrowsershot($html)
                 ->windowSize($width, $height)
                 ->noSandbox()
                 ->deviceScaleFactor(1)
@@ -532,7 +593,7 @@ class EventController extends Controller
 
             $html = View::make('sherehe.dash.event.cards.card_with_link', $data)->render();
 
-            $imageBinary = Browsershot::html($html)
+            $imageBinary = $this->getBrowsershot($html)
                 ->windowSize($width, $height)
                 ->noSandbox()
                 ->deviceScaleFactor(1)
@@ -605,7 +666,7 @@ class EventController extends Controller
 
             $html = View::make('sherehe.dash.event.tickets.ticket_view', $data)->render();
 
-            $imageBinary = Browsershot::html($html)
+            $imageBinary = $this->getBrowsershot($html)
                 ->windowSize($width, $height)
                 ->noSandbox()
                 ->deviceScaleFactor(1)
@@ -819,7 +880,7 @@ class EventController extends Controller
             // Log::debug('Generated HTML: ', ['html' => $html]);
 
             // 2. Render HTML to image using Browsershot
-            $imageBinary = Browsershot::html($html)
+            $imageBinary = $this->getBrowsershot($html)
                 ->windowSize($width, $height)
                 ->showBackground()
                 ->noSandbox()
@@ -1454,7 +1515,7 @@ class EventController extends Controller
             // Log::debug('Generated HTML: ', ['html' => $html]);
 
             // 2. Render HTML to image using Browsershot
-            $imageBinary = Browsershot::html($html)
+            $imageBinary = $this->getBrowsershot($html)
                 ->windowSize($width, $height)
                 ->showBackground()
                 ->noSandbox()
@@ -1510,8 +1571,13 @@ class EventController extends Controller
 
         $event = Event::find($eventId);
         if (!$event) {
-            return redirect()->back()->withErrors(['error' => 'Event not found.']);
-        } // Fetch all attendees for this event
+            return response()->json(['success' => false, 'message' => 'Event not found.']);
+        }
+
+        // Check if card_types is configured
+        if (!$event->card_types) {
+            return response()->json(['success' => false, 'message' => 'Card types not configured for this event. Please set up card pricing first.']);
+        }
 
         // if ($event->card_balance <= 0) {
         //     return response()->json([
@@ -1525,7 +1591,7 @@ class EventController extends Controller
         })->distinct('id')->get();
 
         if ($attendees->isEmpty()) {
-            return redirect()->back()->withErrors(['error' => 'No eligible attendees found.']);
+            return response()->json(['success' => false, 'message' => 'No eligible attendees found. Please ensure attendees have paid enough for cards.']);
         }
         DB::beginTransaction();
         try {
@@ -1700,101 +1766,135 @@ class EventController extends Controller
                     . $rsvpNumbers;
             }
 
-            // if ($event->sms_balance >= 2) {
-            $sensSMS = new SMSTrait;
-            $sensSMS->sendBEEMSMS1($beemPhone, $smsMessage);
-            // $event->decrement('sms_balance', 2);
-            // }
+            // Track sending results
+            $smsSuccess = false;
+            $whatsAppSuccess = false;
+            $messages = [];
 
-            $venueLocation = '';
-            if (!empty($event->maps_location)) {
-                $venueLocation = "\n\n" .  "*" . "Venue Location" . "*" . "\n"  . $event->maps_location;
+            // Send SMS
+            try {
+                $sensSMS = new SMSTrait;
+                $sensSMS->sendBEEMSMS1($beemPhone, $smsMessage);
+                $smsSuccess = true;
+                $messages[] = 'SMS sent successfully';
+                Log::info("SMS sent successfully to: " . $beemPhone);
+            } catch (\Exception $e) {
+                Log::error("SMS failed: " . $e->getMessage());
+                $messages[] = 'SMS failed: ' . $e->getMessage();
             }
 
-            $dressCode = '';
-            if (!empty($event->dress_code)) {
-                $dressCode =  "\n\n" . "*" . "Dress Code" . "*" . "\n"  . $event->dress_code;
+            // Try to send WhatsApp (only if we want the card image)
+            try {
+                $venueLocation = '';
+                if (!empty($event->maps_location)) {
+                    $venueLocation = "\n\n" .  "*" . "Venue Location" . "*" . "\n"  . $event->maps_location;
+                }
+
+                $dressCode = '';
+                if (!empty($event->dress_code)) {
+                    $dressCode =  "\n\n" . "*" . "Dress Code" . "*" . "\n"  . $event->dress_code;
+                }
+
+                list($width, $height) = getimagesize(public_path($pdfPath));
+                $orientation = $width > $height ? 'landscape' : 'portrait';
+                // Adjust QR code size based on image orientation
+                $qrSize = $orientation === 'landscape' ? $event->qr_width : $event->qr_width;
+                // Increase size for landscape
+                $attendee->qr = base64_encode(QrCode::format('svg')->size($qrSize)->generate(route('qr_pledge', ['pledge_id' => $attendee->id])));
+
+                $imagePath = public_path($pdfPath);
+                $image = Image::make($imagePath)->fit($width, $height);
+
+                // Compress and encode to JPEG (or keep original format if you want)
+                $compressedImage = $image->encode('jpg', 70);
+                $imageBase64 = 'data:image/jpeg;base64,' . base64_encode($compressedImage);
+
+                // QRCODE
+                $data = [
+                    'attendee' => $attendee,
+                    'event' => $event,
+                    'pdfPath' => $pdfPath,
+                    'cardType' => $cardType,
+                    'imageBase64' => $imageBase64,
+                    'width' => $width,
+                    'height' => $height,
+                    'top' => $event->top,
+                    'left' => $event->left,
+                    'color' => $event->color,
+                    'font_size' => $event->font_size,
+                    'qr_top' => $event->qr_top,
+                    'qr_left' => $event->qr_left,
+                    'qr_width' => $event->qr_width,
+                    'qr_code_font_size' => $event->qr_code_font_size,
+                    'card_type_font_size' => $event->card_type_font_size,
+                ];
+
+                $html = View::make('sherehe.dash.event.cards.card_with_name', $data)->render();
+
+                Log::info("Starting Browsershot screenshot for attendee: " . $attendee->id);
+                
+                // 2. Render HTML to image using Browsershot with custom temp path
+                $imageBinary = $this->getBrowsershot($html)
+                    ->windowSize($width, $height)
+                    ->noSandbox()
+                    ->deviceScaleFactor(1)
+                    ->waitUntilNetworkIdle()
+                    ->screenshot();
+                
+                Log::info("Browsershot screenshot completed for attendee: " . $attendee->id);
+
+                $whatsAppTrait = new WhatsAppTrait;
+                Log::info("Calling whatsAppService360Dialog for attendee: " . $attendee->id);
+                
+                $response = $whatsAppTrait->whatsAppService360Dialog(
+                    $attendee->phone,
+                    $imageBinary,
+                    $attendee->full_name,
+                    $event->event_name,
+                    $qrOTCode,
+                    $cardType,
+                    $event->venue,
+                    $event->location,
+                    $event
+                );
+
+                if ($response['success']) {
+                    $whatsAppSuccess = true;
+                    $messages[] = 'WhatsApp sent successfully';
+                    $event->decrement('card_balance');
+                    Log::info("WhatsApp sent successfully to: " . $attendee->phone);
+                } else {
+                    Log::error("WhatsApp API failed: " . json_encode($response));
+                    $messages[] = 'WhatsApp failed: ' . ($response['message'] ?? 'Unknown error');
+                }
+            } catch (\Exception $e) {
+                Log::error("WhatsApp exception: " . $e->getMessage() . "\nFile: " . $e->getFile() . ":" . $e->getLine() . "\nStack trace:\n" . $e->getTraceAsString());
+                $messages[] = 'WhatsApp failed: ' . $e->getMessage();
             }
 
-            list($width, $height) = getimagesize(public_path($pdfPath));
-            $orientation = $width > $height ? 'landscape' : 'portrait';
-            // Adjust QR code size based on image orientation
-            $qrSize = $orientation === 'landscape' ? $event->qr_width : $event->qr_width;
-            // Increase size for landscape
-            $attendee->qr = base64_encode(QrCode::format('svg')->size($qrSize)->generate(route('qr_pledge', ['pledge_id' => $attendee->id])));
-
-            $imagePath = public_path($pdfPath);
-            $image = Image::make($imagePath)->fit($width, $height);
-
-            // Compress and encode to JPEG (or keep original format if you want)
-            $compressedImage = $image->encode('jpg', 70);
-            $imageBase64 = 'data:image/jpeg;base64,' . base64_encode($compressedImage);
-
-            // QRCODE
-            $data = [
-                'attendee' => $attendee,
-                'event' => $event,
-                'pdfPath' => $pdfPath,
-                'cardType' => $cardType,
-                'imageBase64' => $imageBase64,
-                'width' => $width,
-                'height' => $height,
-                'top' => $event->top,
-                'left' => $event->left,
-                'color' => $event->color,
-                'font_size' => $event->font_size,
-                'qr_top' => $event->qr_top,
-                'qr_left' => $event->qr_left,
-                'qr_width' => $event->qr_width,
-                'qr_code_font_size' => $event->qr_code_font_size,
-                'card_type_font_size' => $event->card_type_font_size,
-            ];
-
-
-            $html = View::make('sherehe.dash.event.cards.card_with_name', $data)->render();
-            // Log::debug('Generated HTML: ', ['html' => $html]);
-
-            // 2. Render HTML to image using Browsershot
-            $imageBinary = Browsershot::html($html)
-                ->windowSize($width, $height)
-                ->noSandbox()
-                ->deviceScaleFactor(1)
-                ->waitUntilNetworkIdle()
-                ->screenshot();
-
-
-            $whatsAppTrait = new WhatsAppTrait;
-
-            $response = $whatsAppTrait->whatsAppService360Dialog(
-                $attendee->phone,
-                $imageBinary,
-                $attendee->full_name,
-                $event->event_name,
-                $qrOTCode,
-                $cardType,
-                $event->venue,
-                $event->location,
-                $event
-            );
-
-
-            if ($response['success']) {
-                Log::debug("WhatsApp API success response: " . json_encode($response));
+            // Determine final response based on results
+            if ($smsSuccess || $whatsAppSuccess) {
                 DB::commit();
-                $event->decrement('card_balance');
+                
+                if ($smsSuccess && $whatsAppSuccess) {
+                    $finalMessage = 'Invitation sent successfully via SMS and WhatsApp!';
+                } elseif ($smsSuccess) {
+                    $finalMessage = 'Invitation sent successfully via SMS! (WhatsApp failed)';
+                } else {
+                    $finalMessage = 'Invitation sent successfully via WhatsApp! (SMS failed)';
+                }
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Cards have been successfully sent via WhatsApp to all eligible attendees.'
+                    'message' => $finalMessage,
+                    'details' => $messages
                 ]);
             } else {
-                Log::error("WhatsApp API failed: " . json_encode($response));
-                DB::rollBack(); // if using DB transactions
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    // 'message' => $response['message'] ?? 'Failed to send message.',
-                    'message' => 'Failed to send message.',
-                    'details' => $response['details'] ?? null,
+                    'message' => 'Both SMS and WhatsApp failed to send.',
+                    'details' => $messages
                 ], 500);
             }
 
@@ -1809,8 +1909,12 @@ class EventController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            // return redirect()->route('dash.event', ['id' => $event->id])->withErrors(['error' => 'Failed to send the card via WhatsApp. Please try again. ' . $e->getMessage()]);
-            return response()->json(['error' => 'Failed to send the card via WhatsApp. Please try again. ' . $e->getMessage()]);
+            Log::error("Exception in sendInvitationCardByCardName: " . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to process invitation. Please try again.',
+                'details' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -2036,7 +2140,7 @@ class EventController extends Controller
             // Log::debug('Generated HTML: ', ['html' => $html]);
 
             // 2. Render HTML to image using Browsershot
-            $imageBinary = Browsershot::html($html)
+            $imageBinary = $this->getBrowsershot($html)
                 ->windowSize($width, $height)
                 ->noSandbox()
                 ->deviceScaleFactor(1)

@@ -10,6 +10,7 @@ use App\Traits\WhatsAppTrait;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Browsershot\Browsershot;
@@ -17,6 +18,29 @@ use Spatie\Browsershot\Browsershot;
 
 class PaymentController extends Controller
 {
+    /**
+     * Find the correct Chrome/Chromium executable path
+     */
+    private function findChromePath(): ?string
+    {
+        $possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/snap/bin/chromium',
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+        
+        // Return null to let Browsershot try to auto-detect
+        return null;
+    }
+    
     public function makePayment($payment_id)
     {
         $bulk = BulkSMS::find($payment_id);
@@ -316,12 +340,41 @@ class PaymentController extends Controller
 
             list($width, $height) = getimagesize(public_path($pdfPath));
 
-            $imageBinary = Browsershot::html($html)
+            // Create temp directory in storage if it doesn't exist
+            $tempDir = storage_path('app/browsershot_temp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            // Create a directory for Chrome user data
+            $chromeUserDataDir = storage_path('app/chrome_user_data');
+            if (!is_dir($chromeUserDataDir)) {
+                mkdir($chromeUserDataDir, 0755, true);
+            }
+
+            // Find the correct Chromium path
+            $chromePath = $this->findChromePath();
+            
+            $browsershot = Browsershot::html($html)
+                ->setCustomTempPath($tempDir)
+                ->addChromiumArguments([
+                    'user-data-dir' => $chromeUserDataDir,
+                    'no-sandbox' => true,
+                    'disable-setuid-sandbox' => true,
+                    'disable-dev-shm-usage' => true,
+                    'disable-gpu' => true,
+                ])
                 ->windowSize($width, $height)
                 ->noSandbox()
                 ->deviceScaleFactor(1)
-                ->waitUntilNetworkIdle()
-                ->screenshot();
+                ->waitUntilNetworkIdle();
+            
+            // Only set Chrome path if we found one
+            if ($chromePath) {
+                $browsershot->setChromePath($chromePath);
+            }
+            
+            $imageBinary = $browsershot->screenshot();
 
             $base64Image = base64_encode($imageBinary);
 
@@ -331,9 +384,12 @@ class PaymentController extends Controller
             $relativePath = 'whatsapp_images/' . $fileName;
             $fullPath = public_path($relativePath);
 
-            // Hakikisha folder lipo
-            if (!file_exists(public_path('whatsapp_images'))) {
-                mkdir(public_path('whatsapp_images'), 0777, true);
+            // Hakikisha folder lipo (under the configured public path)
+            if (!is_dir(public_path())) {
+                throw new \RuntimeException('Laravel public path does not exist. Set APP_PUBLIC_PATH to your web document root.');
+            }
+            if (!File::isDirectory(public_path('whatsapp_images'))) {
+                File::makeDirectory(public_path('whatsapp_images'), 0755, true);
             }
 
             // Hifadhi picha moja kwa moja kwenye `public/`
@@ -388,8 +444,11 @@ class PaymentController extends Controller
         $image = @imagecreatefromstring($imageData);
 
         $uploadDir = public_path('uploads');
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        if (!is_dir(public_path())) {
+            throw new \RuntimeException('Laravel public path does not exist. Set APP_PUBLIC_PATH to your web document root.');
+        }
+        if (!File::isDirectory($uploadDir)) {
+            File::makeDirectory($uploadDir, 0755, true);
         }
 
         $filename = 'converted_' . uniqid() . '.jpeg';
