@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\API\EventController;
 use App\Http\Controllers\API\FeedbackController;
+use App\Http\Controllers\API\ReferralController;
 use App\Http\Controllers\API\ChatbotController;
 use App\Http\Controllers\Auth\App\AuthController;
 use App\Http\Controllers\Auth\App\RegisterAppUserController;
@@ -44,9 +45,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/verify_code', [EventController::class, 'verifyCode']);
     Route::post('/verify_code_by_normal', [EventController::class, 'verifyCodeByNormalUser']);
 
-    // Feedback
+    // Feedback (simplified - just comments)
     Route::post('/feedback', [FeedbackController::class, 'store']);
     Route::get('/my-feedbacks', [FeedbackController::class, 'myFeedbacks']);
+    Route::get('/all-feedbacks', [FeedbackController::class, 'all']);
+    Route::delete('/feedback/{id}', [FeedbackController::class, 'destroy']);
+
+    // Referral & Loyalty Points
+    Route::get('/referral/info', [ReferralController::class, 'getReferralInfo']);
+    Route::post('/referral/use', [ReferralController::class, 'useReferralCode']);
+    Route::post('/referral/use-points', [ReferralController::class, 'usePoints']);
+    Route::get('/referral/check-first-event', [ReferralController::class, 'checkFirstEvent']);
 
     // Rule-based chatbot
     Route::get('/chatbot/bootstrap', [ChatbotController::class, 'bootstrap']);

@@ -72,6 +72,10 @@ class User extends Authenticatable
         'admin_ip_address',
         'updated_ip_address',
         'deleted_ip_address',
+        'referral_code',
+        'loyalty_points',
+        'has_used_referral',
+        'referred_by',
     ];
 
     /**
@@ -97,6 +101,9 @@ class User extends Authenticatable
         'created_at'                        => 'datetime',
         'updated_at'                        => 'datetime',
         'deleted_at'                        => 'datetime',
+        'loyalty_points'                    => 'integer',
+        'has_used_referral'                 => 'boolean',
+        'referred_by'                       => 'integer',
     ];
 
     public function sendPasswordResetNotification($token)
@@ -169,8 +176,25 @@ class User extends Authenticatable
     {
         return $this->hasMany(Device::class);
     }
+
     public function events(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Event\Event::class);
+    }
+
+    /**
+     * Get the user who referred this user.
+     */
+    public function referrer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referred_by');
+    }
+
+    /**
+     * Get all users referred by this user.
+     */
+    public function referrals(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(User::class, 'referred_by');
     }
 }

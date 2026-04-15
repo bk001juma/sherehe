@@ -145,6 +145,10 @@ Route::group(['middleware' => ['auth', 'activated', 'role:admin', 'activity', 't
     Route::get('logs', '\Rap2hpoutre\LaravelLogViewer\LogViewerController@index');
     Route::get('routes', 'App\Http\Controllers\AdminDetailsController@listRoutes');
     // Route::get('active-users', 'App\Http\Controllers\AdminDetailsController@activeUsers');
+
+    // Comments management
+    Route::get('comments', 'App\Http\Controllers\CommentsController@index')->name('comments.index');
+    Route::delete('comments/{id}', 'App\Http\Controllers\CommentsController@destroy')->name('comments.destroy');
 });
 
 Route::redirect('/php', '/phpinfo', 301);

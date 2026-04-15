@@ -123,10 +123,25 @@ class WhatsAppTrait
                 'Content-Type' => 'application/json',
             ])->post($apiUrl, $payload);
 
+            // Log the full API response for debugging
+            Log::info("360Dialog API Response for whatsAppService360Dialog", [
+                'phone' => $phone_no,
+                'status' => $response->status(),
+                'response' => $response->json(),
+                'image_url' => $imageUrl
+            ]);
+
             if ($response->successful()) {
-                return ['success' => true, 'message' => 'Message sent successfully.'];
+                $responseData = $response->json();
+                $messageId = $responseData['messages'][0]['id'] ?? 'unknown';
+                return ['success' => true, 'message' => 'Message sent successfully.', 'message_id' => $messageId];
             }
 
+            Log::error("WhatsApp message failed in whatsAppService360Dialog", [
+                'phone' => $phone_no,
+                'status' => $response->status(),
+                'error' => $response->body()
+            ]);
             return ['success' => false, 'message' => 'Failed to send message.', 'details' => $response->body()];
         } finally {
             // if (file_exists($fullPath)) {

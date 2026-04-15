@@ -233,6 +233,12 @@ class AuthController extends Controller
             $user->image_url = '/files/profile.png';
         }
 
+        // Events count
+        $user->events_count = $user->events()->count();
+        
+        // Referral info
+        $user->referrals_count = \App\Models\User::where('referred_by', $user->id)->count();
+
         return $user->only([
             'id',
             'first_name',
@@ -242,6 +248,11 @@ class AuthController extends Controller
             'role_name',
             'role_level',
             'image_url',
+            'events_count',
+            'referral_code',
+            'loyalty_points',
+            'has_used_referral',
+            'referrals_count',
         ]);
     }
 

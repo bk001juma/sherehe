@@ -12,15 +12,12 @@ use Illuminate\Support\Facades\Validator;
 class FeedbackController extends Controller
 {
     /**
-     * Store a new feedback entry.
+     * Store a new feedback/comment entry (simplified - no categories/status).
      */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'category' => 'required|string|in:bug,feature,general,complaint',
-            'subject'  => 'required|string|max:255',
-            'message'  => 'required|string|max:2000',
-            'rating'   => 'nullable|integer|min:1|max:5',
+            'message' => 'required|string|max:2000',
         ]);
 
         if ($validator->fails()) {
@@ -33,17 +30,13 @@ class FeedbackController extends Controller
 
         try {
             $feedback = Feedback::create([
-                'user_id'  => Auth::id(),
-                'category' => $request->category,
-                'subject'  => $request->subject,
-                'message'  => $request->message,
-                'rating'   => $request->rating,
+                'user_id' => Auth::id(),
+                'message' => $request->message,
             ]);
 
             Log::info('Feedback submitted', [
                 'user_id'     => Auth::id(),
                 'feedback_id' => $feedback->id,
-                'category'    => $request->category,
             ]);
 
             return response()->json([
@@ -73,6 +66,35 @@ class FeedbackController extends Controller
         return response()->json([
             'status' => 'success',
             'data'   => $feedbacks,
+        ]);
+    }
+
+    /**
+     * Get all feedbacks (for admin/web).
+     */
+    public function all()
+    {
+        $feedbacks = Feedback::with('user:id,first_name,last_name,phone')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $feedbacks,
+        ]);
+    }
+
+    /**
+     * Delete a feedback.
+     */
+    public function destroy($id)
+    {
+        $feedback = Feedback::findOrFail($id);
+        $feedback->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Feedback deleted successfully!',
         ]);
     }
 }

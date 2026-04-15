@@ -42,6 +42,15 @@
         </div>
     @endif
 
+    @if (Auth::user()->hasRole('admin'))
+        <div class="sidebar__item {{ Route::is('comments.index') ? '-is-active -dark-bg-dark-2' : null }}">
+            <a href="{{ route('comments.index') }}" class="d-flex items-center text-17 lh-1 fw-500 ">
+                <i class="fa fa-comments text-20 mr-15"></i>
+                Comments
+            </a>
+        </div>
+    @endif
+
 
     <div class="sidebar__item ">
         <a class="d-flex items-center text-17 lh-1 fw-500 " href="{{ route('logout') }}"

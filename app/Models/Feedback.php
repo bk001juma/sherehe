@@ -13,12 +13,21 @@ class Feedback extends Model
 
     protected $fillable = [
         'user_id',
+        'message',
         'category',
         'subject',
-        'message',
         'rating',
         'status',
         'admin_reply',
+    ];
+
+    /**
+     * Default values for attributes
+     */
+    protected $attributes = [
+        'category' => 'general',
+        'subject' => 'App Feedback',
+        'status' => 'pending',
     ];
 
     public function user()
