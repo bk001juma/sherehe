@@ -3,10 +3,40 @@
 namespace App\Traits;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class WhatsAppTrait
 {
+
+    /**
+     * Store WhatsApp image using Laravel Storage and return the URL.
+     * Uses storage/app/public/whatsapp_images with a symlink to make it publicly accessible.
+     */
+    private function storeWhatsAppImage(string $imageBinary): array
+    {
+        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
+        $storagePath = 'whatsapp_images/' . $fileName;
+        
+        // Store the image in storage/app/public/whatsapp_images/
+        Storage::disk('public')->put($storagePath, $imageBinary);
+        
+        // Get the public URL (requires storage:link to be run)
+        $imageUrl = Storage::disk('public')->url($storagePath);
+        
+        // Get the full path for cleanup if needed
+        $fullPath = Storage::disk('public')->path($storagePath);
+        
+        Log::info("WhatsApp image stored at: {$fullPath}, URL: {$imageUrl}");
+        
+        return [
+            'url' => $imageUrl,
+            'path' => $storagePath,
+            'fullPath' => $fullPath
+        ];
+    }
 
     public function whatsAppService360Dialog(
         $phone,
@@ -23,22 +53,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         $langCode = in_array($event->language, ['sw', 'en']) ? $event->language : 'sw';
 
@@ -185,22 +202,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         $langCode = in_array($event->language, ['sw', 'en']) ? $event->language : 'sw';
 
@@ -289,22 +293,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         $langCode = in_array($event->language, ['sw', 'en']) ? $event->language : 'sw';
 
@@ -381,22 +372,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         if ($event->language === 'sw') {
             // Kwa Kiswahili - parameters 7 (bila tarehe na muda)
@@ -476,22 +454,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         $payload = [
             "messaging_product" => "whatsapp",
@@ -585,22 +550,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         $langCode = in_array($event->language, ['sw', 'en']) ? $event->language : 'sw';
 
@@ -701,22 +653,9 @@ class WhatsAppTrait
         $apiKey = env('D360_API_KEY');
         $phone_no = $this->formatPhone($phone);
 
-        // **Mabadiliko Yanaanzia Hapa:**
-        // 1. Tengeneza jina la faili la kipekee
-        $fileName = 'whatsapp_image_' . uniqid() . '.jpeg';
-        $relativePath = 'whatsapp_images/' . $fileName;
-        $fullPath = public_path($relativePath);
-
-        // Hakikisha folder lipo
-        if (!file_exists(public_path('whatsapp_images'))) {
-            mkdir(public_path('whatsapp_images'), 0777, true);
-        }
-
-        // Hifadhi picha moja kwa moja kwenye `public/`
-        file_put_contents($fullPath, $imageBinary);
-
-        // Tengeneza URL ya picha
-        $imageUrl = url($relativePath);
+        // Store image using Laravel Storage
+        $imageData = $this->storeWhatsAppImage($imageBinary);
+        $imageUrl = $imageData['url'];
 
         $langCode = in_array($event->language, ['sw', 'en']) ? $event->language : 'sw';
 
@@ -793,6 +732,94 @@ class WhatsAppTrait
             // if (file_exists($fullPath)) {
             //     unlink($fullPath);
             // }
+        }
+    }
+
+    /**
+     * Send WhatsApp reminder without requiring image binary
+     * Uses event's welcome_note or a default image
+     */
+    public function sendWhatsAppReminder(
+        $phone,
+        $pledgerName,
+        $event
+    ) {
+        $apiUrl = env('D360_API_URL');
+        $apiKey = env('D360_API_KEY');
+        $phone_no = $this->formatPhone($phone);
+
+        // Use event's welcome_note image or a default image
+        $imageUrl = $event->welcome_note != null 
+            ? url($event->welcome_note) 
+            : "https://sherehe.co.tz/events/1753731709_FZEEOgppPr.jpg";
+
+        $langCode = in_array($event->language, ['sw', 'en']) ? $event->language : 'sw';
+
+        if ($langCode === 'sw') {
+            $bodyParameters = [
+                ["type" => "text", "text" => $pledgerName],
+                ["type" => "text", "text" => $event->family_name ?? $event->event_name],
+                ["type" => "text", "text" => $event->mr_name ?? ''],
+                ["type" => "text", "text" => $event->mrs_name ?? ''],
+                ["type" => "text", "text" => \Carbon\Carbon::parse($event->event_date)->format('d F Y')],
+                ["type" => "text", "text" => $event->contribution_deadline ? \Carbon\Carbon::parse($event->contribution_deadline)->format('d F Y') : ''],
+                ["type" => "text", "text" => $event->payment_numbers ?? ''],
+            ];
+        } else {
+            $bodyParameters = [
+                ["type" => "text", "text" => $pledgerName],
+                ["type" => "text", "text" => $event->family_name ?? $event->event_name],
+                ["type" => "text", "text" => $event->mr_name ?? ''],
+                ["type" => "text", "text" => $event->mrs_name ?? ''],
+                ["type" => "text", "text" => \Carbon\Carbon::parse($event->event_date)->format('d F Y')],
+                ["type" => "text", "text" => $event->contribution_deadline ? \Carbon\Carbon::parse($event->contribution_deadline)->format('d F Y') : ''],
+                ["type" => "text", "text" => $event->payment_numbers ?? ''],
+            ];
+        }
+
+        $payload = [
+            "messaging_product" => "whatsapp",
+            "recipient_type" => "individual",
+            "to" => trim($phone_no),
+            "type" => "template",
+            "template" => [
+                "name" => $langCode === "sw" ? "mchango_ukumbusho_sww" : "mchango_ukumbusho_en",
+                "language" => [
+                    "code" => $langCode
+                ],
+                "components" => [
+                    [
+                        "type" => "header",
+                        "parameters" => [
+                            [
+                                "type" => "image",
+                                "image" => [
+                                    "link" => $imageUrl
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "type" => "body",
+                        "parameters" => $bodyParameters
+                    ]
+                ]
+            ]
+        ];
+
+        try {
+            $response = Http::withHeaders([
+                'D360-API-KEY' => $apiKey,
+                'Content-Type' => 'application/json',
+            ])->post($apiUrl, $payload);
+
+            if ($response->successful()) {
+                return ['success' => true, 'message' => 'Message sent successfully.'];
+            }
+
+            return ['success' => false, 'message' => 'Failed to send message.', 'details' => $response->body()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Exception: ' . $e->getMessage()];
         }
     }
 }

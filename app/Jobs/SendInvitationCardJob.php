@@ -301,12 +301,13 @@ class SendInvitationCardJob implements ShouldQueue
      */
     private function findChromePath(): ?string
     {
+        // Prioritize Google Chrome over snap Chromium (snap has AppArmor restrictions on /tmp file access)
         $possiblePaths = [
-            '/usr/bin/chromium-browser',
-            '/usr/bin/chromium',
-            '/snap/bin/chromium',
-            '/usr/bin/google-chrome',
             '/usr/bin/google-chrome-stable',
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+            '/snap/bin/chromium',
         ];
         
         foreach ($possiblePaths as $path) {

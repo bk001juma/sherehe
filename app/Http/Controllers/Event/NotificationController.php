@@ -492,8 +492,11 @@ class NotificationController extends Controller
 
             // Hakikisha folder ipo
             $whatsappImagesPath = public_path('whatsapp_images');
-            if (!file_exists($whatsappImagesPath)) {
-                mkdir($whatsappImagesPath, 0777, true);
+            if (!is_dir(public_path())) {
+                throw new \RuntimeException('Laravel public path does not exist. Set APP_PUBLIC_PATH to your web document root.');
+            }
+            if (!File::isDirectory($whatsappImagesPath)) {
+                File::makeDirectory($whatsappImagesPath, 0755, true);
             }
 
             // Tengeneza filename na hifadhi image

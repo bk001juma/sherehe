@@ -17,6 +17,31 @@ $app = new Illuminate\Foundation\Application(
 
 /*
 |--------------------------------------------------------------------------
+| Custom Public Path (shared hosting / non-standard docroot)
+|--------------------------------------------------------------------------
+|
+| Some deployments use a document root like "public_html" instead of the
+| default "public" directory. When that's the case, Laravel's public_path()
+| points to a folder that may not exist, causing runtime failures when code
+| tries to write public assets (e.g. WhatsApp images).
+|
+| Set APP_PUBLIC_PATH to an absolute path (recommended) or a path relative
+| to APP_BASE_PATH (e.g. "public_html") to override.
+|
+*/
+$publicPath = $_ENV['APP_PUBLIC_PATH'] ?? $_SERVER['APP_PUBLIC_PATH'] ?? null;
+if (!empty($publicPath)) {
+    $basePath = $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__);
+    // If a relative path is provided, resolve it against the app base path.
+    if (!preg_match('~^/|^[A-Za-z]:\\\\~', $publicPath)) {
+        $publicPath = $basePath . DIRECTORY_SEPARATOR . $publicPath;
+    }
+
+    $app->usePublicPath($publicPath);
+}
+
+/*
+|--------------------------------------------------------------------------
 | Bind Important Interfaces
 |--------------------------------------------------------------------------
 |
