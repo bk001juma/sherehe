@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
@@ -39,6 +40,7 @@ class AuthController extends Controller
             $otp = rand(100000, 999999);
 
             TempOTP::create(['otp' => $otp, 'phone' => $data['phone'], 'otp_expires_at' => Carbon::now()->addMinutes(5)]);
+            Log::info("OTP sent to {$data['phone']}: {$otp}");
             $sensSMS = new SMSTrait;
             $sensSMS->sendBEEMSMS($request['phone'], "Your OTP is " . $otp . "\n\nKaribu Sherehe Digital");
 
@@ -296,6 +298,7 @@ class AuthController extends Controller
         $user->otp = rand(100000, 999999);
         $user->otp_expires_at = Carbon::now()->addMinutes(5);
         $user->save();
+        Log::info("OTP sent to {$user->phone}: {$user->otp}");
 
         $smsTrait = new SMSTrait();
         $smsTrait->sendBEEMSMS($user->phone, "Your Sherehe OTP is " . $user->otp);
